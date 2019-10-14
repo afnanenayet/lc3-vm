@@ -4,7 +4,7 @@
 ///
 /// The different opcodes are commented if they have special functionality. The R[N] registers are
 /// normal registers that can store memory.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Register {
     R0 = 0,
     R1,
@@ -28,7 +28,7 @@ pub enum Register {
 }
 
 /// The available opcodes for the LC3 VM
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Op {
     /// Branch
     BR = 0,
@@ -80,7 +80,7 @@ pub enum Op {
 }
 
 /// The trap routines available for LC3
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum Trap {
     /// Get a character from the keyboard (not echoed onto the terminal)
     GETC = 0x20,
@@ -103,6 +103,7 @@ pub enum Trap {
 
 /// These are the different condition flags that can be used for an operation. These flags allow a
 /// program to check logical conditions.
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum ConditionFlag {
     /// Positive: P
     POS = 1 << 0,
@@ -115,6 +116,7 @@ pub enum ConditionFlag {
 }
 
 /// The addresses of the available memory mapped registers
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub enum MemoryMappedRegister {
     /// Keyboard status
     KBSR = 0xFE00,

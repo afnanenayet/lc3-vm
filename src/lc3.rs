@@ -13,6 +13,7 @@ use consts::{MemoryMappedRegister, Op, Register};
 use instruction::{bit_mask, get_arg, getchar, sign_extend};
 use itertools::Itertools;
 use std::{
+    collections::HashMap,
     fs::File,
     io::{self, Read},
 };
@@ -62,27 +63,34 @@ impl LC3 {
 
         // fetch instruction here TODO: implement mem_read
         let instr = 0;
+        let dispatch_table = op_dispatch_table![
+            (Op::BR, instruction::op::br),
+            (Op::LD, instruction::op::ld),
+            (Op::ADD, instruction::op::add),
+            (Op::LD, instruction::op::ld),
+            (Op::ST, instruction::op::st),
+            (Op::JSR, instruction::op::jsr),
+            (Op::AND, instruction::op::and),
+            (Op::LDR, instruction::op::ldr),
+            (Op::STR, instruction::op::str),
+            (Op::RTI, instruction::op::rti),
+            (Op::NOT, instruction::op::not),
+            (Op::LDI, instruction::op::ldi),
+            (Op::STI, instruction::op::sti),
+            (Op::JMP, instruction::op::jmp),
+            (Op::RES, instruction::op::res),
+            (Op::LEA, instruction::op::lea)
+        ];
         while self.running {
-            match op {
-                Op::BR => self.op_br(instr),
-                Op::LD => self.op_ld(instr),
-                Op::ADD => self.op_add(instr),
-                Op::LD => self.op_ld(instr),
-                Op::ST => self.op_st(instr),
-                Op::JSR => self.op_jsr(instr),
-                Op::AND => self.op_and(instr),
-                Op::LDR => self.op_ldr(instr),
-                Op::STR => self.op_str(instr),
-                Op::RTI => self.op_rti(instr),
-                Op::NOT => self.op_not(instr),
-                Op::LDI => self.op_ldi(instr),
-                Op::STI => self.op_sti(instr),
-                Op::JMP => self.op_jmp(instr),
-                Op::RES => self.op_res(instr),
-                Op::LEA => self.op_lea(instr),
-                _ => panic!("Unsupported opcode encountered. Aborting."),
-                //Op::TRAP => self.op_trap(instr), // TODO
-            }
+            // Find the method that corresponds to the operation in the dispatch table. If the
+            // opcode is not in the dispatch table then the VM will panic and quit. If the opcode
+            // is fine, then we can invoke the function and modify the VM's state as necessary.
+            // TODO: better/more constructive error handling
+            dispatch_table
+                .get(&op)
+                .or_else(|| panic!("Aborting: unsupported or malformed OPCODE was supplied"));
+            let op_fn = dispatch_table[&op];
+            op_fn(self, instr);
         }
         unimplemented!();
     }
@@ -129,14 +137,14 @@ impl LC3 {
     /// Write a value to some memory location
     ///
     /// This will write a value to the VM's memory bank given the value and the pointer address.
-    fn mem_write(&mut self, addr: u16, val: u16) {
+    pub fn mem_write(&mut self, addr: u16, val: u16) {
         self.memory[addr as usize] = val;
     }
 
     /// Returns the value at a particular memory address
     ///
     /// This also has support for memory mapped registers, such as for the keyboard.
-    fn mem_read(&mut self, addr: u16) -> u16 {
+    pub fn mem_read(&mut self, addr: u16) -> u16 {
         if addr == MemoryMappedRegister::KBSR as u16 {
             if false {
                 // TODO implement `check_key`
@@ -151,150 +159,13 @@ impl LC3 {
 
     /****** opcode implementations ******/
 
-    fn op_add(&mut self, instr: u16) {
-        // destination register (DR)
-        let r0 = (instr >> 9) & bit_mask(3);
-
-        // first operand (SR1)
-        let r1 = (instr >> 6) & bit_mask(3);
-
-        // indicates whether the program is in immediate mode
-        let imm_flag = (instr >> 5) & bit_mask(1);
-
-        self.registers[r0 as usize] = if imm_flag != 0 {
-            let imm5 = sign_extend(instr & 0x5, 5);
-            self.registers[r1 as usize] + imm5
-        } else {
-            let r2 = instr & bit_mask(3);
-            self.registers[r1 as usize] + self.registers[r2 as usize]
-        };
-        self.update_cond_flag(r0);
-    }
-
-    fn op_ldi(&mut self, instr: u16) {
-        let r0 = (instr >> 9) & bit_mask(3);
-        let pc_offset = sign_extend(instr & 0x1ff, 9);
-        //self.registers[r0 as usize] =
-        //mem_read(mem_read(self.registers[Register::PC as usize] + pc_offset));
-        self.update_cond_flag(r0);
-    }
-
-    fn op_and(&mut self, instr: u16) {
-        let r0 = (instr >> 9) & bit_mask(3);
-        let r1 = (instr >> 6) & bit_mask(3);
-        let imm_mode = (instr >> 5) & bit_mask(1) != 0;
-
-        self.registers[r0 as usize] = if imm_mode {
-            let imm5 = sign_extend(instr & bit_mask(5), 5);
-            self.registers[r1 as usize] + imm5
-        } else {
-            let r2 = instr & bit_mask(3);
-            self.registers[r1 as usize] + self.registers[r2 as usize]
-        };
-        self.update_cond_flag(r0);
-    }
-
-    /// This operation is unused
-    fn op_rti(&mut self, instr: u16) {
-        // TODO: abort
-    }
-
-    /// This operation is unused
-    fn op_res(&mut self, instr: u16) {
-        // TODO: abort
-    }
-
-    fn op_not(&mut self, instr: u16) {
-        let r0 = get_arg(instr, 9, 3);
-        let r1 = get_arg(instr, 6, 3);
-        self.registers[r0 as usize] = !self.registers[r1 as usize];
-        self.update_cond_flag(r0);
-    }
-
-    fn op_br(&mut self, instr: u16) {
-        let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
-        let cond_flag = get_arg(instr, 9, 3);
-        if cond_flag & self.registers[Register::COND as usize] != 1 {
-            self.registers[Register::PC as usize] += pc_offset;
-        }
-    }
-
-    fn op_jmp(&mut self, instr: u16) {
-        let base_register = get_arg(instr, 6, 3);
-        self.registers[Register::PC as usize] = self.registers[base_register as usize];
-    }
-
-    fn op_jsr(&mut self, instr: u16) {
-        let r1 = get_arg(instr, 6, 3);
-        let long_flag = get_arg(instr, 11, 1);
-        let long_pc_offset = sign_extend(get_arg(instr, 0, 11), 11);
-
-        self.registers[Register::PC as usize] = if long_flag != 0 {
-            long_pc_offset
-        } else {
-            self.registers[r1 as usize]
-        };
-    }
-
-    fn op_ld(&mut self, instr: u16) {
-        let r0 = get_arg(instr, 9, 3);
-        let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
-        self.registers[r0 as usize] =
-            self.mem_read(self.registers[Register::PC as usize] + pc_offset);
-        self.update_cond_flag(r0);
-    }
-
-    fn op_ldr(&mut self, instr: u16) {
-        let r0 = get_arg(instr, 9, 3);
-        let base_register = get_arg(instr, 6, 3);
-        let offset = sign_extend(get_arg(instr, 0, 6), 6);
-        self.registers[r0 as usize] =
-            self.mem_read(self.registers[base_register as usize] + offset);
-        self.update_cond_flag(r0);
-    }
-
-    fn op_lea(&mut self, instr: u16) {
-        let r0 = get_arg(instr, 9, 3);
-        let pc_offset = get_arg(instr, 0, 9);
-        self.mem_write(
-            self.registers[Register::PC as usize] + pc_offset,
-            self.registers[r0 as usize],
-        );
-    }
-
-    fn op_st(&mut self, instr: u16) {
-        let r0 = get_arg(instr, 9, 3);
-        let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
-        self.mem_write(
-            self.registers[Register::PC as usize] + pc_offset,
-            self.registers[r0 as usize],
-        );
-    }
-
-    fn op_sti(&mut self, instr: u16) {
-        let r0 = get_arg(instr, 9, 3);
-        let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
-        let dst = self.mem_read(self.registers[Register::PC as usize] + pc_offset);
-        self.mem_write(dst, self.registers[r0 as usize]);
-    }
-
-    fn op_str(&mut self, instr: u16) {
-        let r0 = get_arg(instr, 9, 3);
-        let r1 = get_arg(instr, 6, 3);
-        let offset = sign_extend(get_arg(instr, 0, 6), 6);
-        self.mem_write(
-            self.registers[r1 as usize] + offset,
-            self.registers[r0 as usize],
-        );
-    }
-
     /****** trap code implementations ******/
 
-    fn trap_puts(&mut self, instr: u16) {
+    fn trap_puts(&mut self) {
         // build up a string by looking for 16 bit integers until we hit the null terminator. The
         // starting location of the string is whatever is at the r0 register
         let start_pos = self.registers[Register::R0 as usize] as usize;
-        let mut end_pos = self
+        let end_pos = self
             .memory
             .iter()
             .skip(start_pos)
@@ -329,6 +200,9 @@ impl LC3 {
         let raw_c = io::stdin()
             .bytes()
             .next()
+            // We use the `and_then` call because there is no native cast from a u8 to a u16, so we
+            // have to promote the type from a `Result` type and do a primitive cast from u8 ->
+            // u16.
             .and_then(|result| result.ok())
             .map(|byte| byte as u16)
             .unwrap_or(0);
