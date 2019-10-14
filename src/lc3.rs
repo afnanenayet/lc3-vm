@@ -9,11 +9,13 @@ mod consts;
 #[macro_use]
 mod instruction;
 
-use consts::{Op, Register};
-use instruction::{bit_mask, get_arg, sign_extend};
+use consts::{MemoryMappedRegister, Op, Register};
+use instruction::{bit_mask, get_arg, getchar, sign_extend};
 use itertools::Itertools;
-use std::fs::File;
-use std::io::{self, Read};
+use std::{
+    fs::File,
+    io::{self, Read},
+};
 
 /// The data pertaining to the state of the LC3 VM
 #[derive(Clone, Debug)]
@@ -62,6 +64,7 @@ impl LC3 {
         let instr = 0;
         while self.running {
             match op {
+                Op::BR => self.op_br(instr),
                 Op::LD => self.op_ld(instr),
                 Op::ADD => self.op_add(instr),
                 Op::LD => self.op_ld(instr),
@@ -77,6 +80,7 @@ impl LC3 {
                 Op::JMP => self.op_jmp(instr),
                 Op::RES => self.op_res(instr),
                 Op::LEA => self.op_lea(instr),
+                _ => panic!("Unsupported opcode encountered. Aborting."),
                 //Op::TRAP => self.op_trap(instr), // TODO
             }
         }
@@ -96,13 +100,15 @@ impl LC3 {
 
         // The "origin" defines the initial offset for where memory should be loaded from the image
         let origin = (buf[0] << 8) | buf[1];
-        let mut start_idx = origin as usize;
+        let mut mem_idx = origin as usize;
 
         // Take two bytes at a time and reverse the endian-ness, placing the final 16-bit integer
         // into a memory location
-        for (idx, chunk) in &buf.into_iter().skip(2).chunks(2).enumerate() {
-            let p = chunk[0] << 8 | chunk[1];
-            self.memory[idx] = p;
+        for mut chunk in &buf.into_iter().skip(2).chunks(2) {
+            let p: u16 =
+                (chunk.next().unwrap_or(0) as u16) << 8 | (chunk.next().unwrap_or(0) as u16);
+            self.memory[mem_idx] = p;
+            mem_idx += 1;
         }
         Ok(())
     }
@@ -118,6 +124,29 @@ impl LC3 {
         // The converted condition value
         let cond_flag = instruction::get_cond_flag(raw_cond);
         self.registers[Register::COND as usize] = cond_flag as u16;
+    }
+
+    /// Write a value to some memory location
+    ///
+    /// This will write a value to the VM's memory bank given the value and the pointer address.
+    fn mem_write(&mut self, addr: u16, val: u16) {
+        self.memory[addr as usize] = val;
+    }
+
+    /// Returns the value at a particular memory address
+    ///
+    /// This also has support for memory mapped registers, such as for the keyboard.
+    fn mem_read(&mut self, addr: u16) -> u16 {
+        if addr == MemoryMappedRegister::KBSR as u16 {
+            if false {
+                // TODO implement `check_key`
+                self.memory[MemoryMappedRegister::KBSR as usize] = 1 << 15;
+                self.memory[MemoryMappedRegister::KBDR as usize] = getchar().into();
+            } else {
+                self.memory[MemoryMappedRegister::KBSR as usize] = 0;
+            }
+        }
+        self.memory[addr as usize]
     }
 
     /****** opcode implementations ******/
@@ -210,7 +239,8 @@ impl LC3 {
     fn op_ld(&mut self, instr: u16) {
         let r0 = get_arg(instr, 9, 3);
         let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
-        self.registers[r0 as usize] = mem_read(self.registers[Register::PC as usize] + pc_offset);
+        self.registers[r0 as usize] =
+            self.mem_read(self.registers[Register::PC as usize] + pc_offset);
         self.update_cond_flag(r0);
     }
 
@@ -218,7 +248,8 @@ impl LC3 {
         let r0 = get_arg(instr, 9, 3);
         let base_register = get_arg(instr, 6, 3);
         let offset = sign_extend(get_arg(instr, 0, 6), 6);
-        self.registers[r0 as usize] = mem_read(self.registers[base_register as usize] + offset);
+        self.registers[r0 as usize] =
+            self.mem_read(self.registers[base_register as usize] + offset);
         self.update_cond_flag(r0);
     }
 
@@ -243,10 +274,8 @@ impl LC3 {
     fn op_sti(&mut self, instr: u16) {
         let r0 = get_arg(instr, 9, 3);
         let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
-        self.mem_write(
-            mem_read(self.registers[Register::PC as usize] + pc_offset),
-            self.registers[r0 as usize],
-        );
+        let dst = self.mem_read(self.registers[Register::PC as usize] + pc_offset);
+        self.mem_write(dst, self.registers[r0 as usize]);
     }
 
     fn op_str(&mut self, instr: u16) {
@@ -318,11 +347,11 @@ impl LC3 {
             .unwrap();
 
         for &c in &self.registers[start_pos..end_pos] {
-            let char1 = (c & 0xFF) as u8;
-            let s = String::from_utf8_lossy(&[char1]);
+            let char1 = vec![(c & 0xFF) as u8];
+            let s = String::from_utf8_lossy(char1.as_slice());
             print!("{}", s);
-            let char2 = (c >> 8) as u8;
-            let s = String::from_utf8_lossy(&[char2]);
+            let char2 = vec![(c >> 8) as u8];
+            let s = String::from_utf8_lossy(char2.as_slice());
             print!("{}", s);
         }
     }
@@ -332,5 +361,3 @@ impl LC3 {
         self.running = false;
     }
 }
-
-// TODO memory mapped registers: https://justinmeiners.github.io/lc3-vm/index.html#1:11
