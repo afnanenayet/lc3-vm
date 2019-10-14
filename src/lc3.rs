@@ -157,8 +157,6 @@ impl LC3 {
         self.memory[addr as usize]
     }
 
-    /****** opcode implementations ******/
-
     /****** trap code implementations ******/
 
     fn trap_puts(&mut self) {
