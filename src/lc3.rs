@@ -86,10 +86,10 @@ impl LC3 {
             // opcode is not in the dispatch table then the VM will panic and quit. If the opcode
             // is fine, then we can invoke the function and modify the VM's state as necessary.
             // TODO: better/more constructive error handling
-            dispatch_table
+            let op_fn = dispatch_table
                 .get(&op)
-                .or_else(|| panic!("Aborting: unsupported or malformed OPCODE was supplied"));
-            let op_fn = dispatch_table[&op];
+                .or_else(|| panic!("Aborting: unsupported or malformed OPCODE was supplied"))
+                .unwrap();
             op_fn(self, instr);
         }
         unimplemented!();
@@ -107,7 +107,7 @@ impl LC3 {
         // 8-bit integers to one 16-bit integers
 
         // The "origin" defines the initial offset for where memory should be loaded from the image
-        let origin = (buf[0] << 8) | buf[1];
+        let origin = ((buf[0] as u16) << 8) | (buf[1] as u16);
         let mut mem_idx = origin as usize;
 
         // Take two bytes at a time and reverse the endian-ness, placing the final 16-bit integer
