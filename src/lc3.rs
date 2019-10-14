@@ -8,7 +8,8 @@ mod consts;
 mod instruction;
 
 use consts::Register;
-use instruction::{bit_mask, get_arg, get_cond_flag, sign_extend};
+use instruction::{bit_mask, get_arg, sign_extend};
+use std::io::{self, Read};
 
 /// The data pertaining to the state of the LC3 VM
 #[derive(Clone, Debug)]
@@ -22,6 +23,9 @@ pub struct LC3 {
     /// A vector of the available registers in the VM. The registers are defined in the `Register`
     /// enum in `lc3::consts`.
     registers: Vec<u16>,
+
+    /// State flag representing whether or not the machine is currently running
+    running: bool,
 }
 
 impl LC3 {
@@ -34,6 +38,7 @@ impl LC3 {
         Self {
             memory: Vec::with_capacity(consts::MEMORY_LIMIT),
             registers: Vec::with_capacity(consts::Register::COUNT as usize),
+            running: false,
         }
     }
 
@@ -43,14 +48,14 @@ impl LC3 {
     /// encountered.
     pub fn run_loop(&mut self) -> u32 {
         // Our circuit for determining whether execution should be terminated
-        let mut running = true;
+        self.running = true;
 
         let mut op = consts::Op::LD;
         // let mut instr = mem_read(reg[Register::PC]++);
         // let mut op = instr >> 12;
 
         // fetch instruction here TODO: implement mem_read
-        while running {
+        while self.running {
             //match op {
             //// TODO match each op here
             //};
@@ -70,6 +75,8 @@ impl LC3 {
         let cond_flag = instruction::get_cond_flag(raw_cond);
         self.registers[Register::COND as usize] = cond_flag as u16;
     }
+
+    /****** opcode implementations ******/
 
     fn op_add(&mut self, instr: u16) {
         // destination register (DR)
@@ -207,4 +214,79 @@ impl LC3 {
             self.registers[r0 as usize],
         );
     }
+
+    /****** trap code implementations ******/
+
+    fn trap_puts(&mut self, instr: u16) {
+        // build up a string by looking for 16 bit integers until we hit the null terminator. The
+        // starting location of the string is whatever is at the r0 register
+        let start_pos = self.registers[Register::R0 as usize] as usize;
+        let mut end_pos = self
+            .memory
+            .iter()
+            .skip(start_pos)
+            .position(|x| *x == 0)
+            .unwrap();
+        print!(
+            "{}",
+            String::from_utf16_lossy(&self.memory[start_pos..end_pos])
+        );
+    }
+
+    fn trap_getc(&mut self) {
+        // Get the next character from stdin and convert it to a 16 bit integer so we can store it
+        // in the R0 register
+        let c = io::stdin()
+            .bytes()
+            .next()
+            .and_then(|result| result.ok())
+            .map(|byte| byte as u16)
+            .unwrap_or(0);
+        self.registers[Register::R0 as usize] = c;
+    }
+
+    fn trap_out(&mut self) {
+        let r0 = self.registers[Register::R0 as usize];
+        let character = String::from_utf16_lossy(&[r0]);
+        print!("{}", character);
+    }
+
+    fn trap_in(&mut self) {
+        print!("Enter a character: ");
+        let raw_c = io::stdin()
+            .bytes()
+            .next()
+            .and_then(|result| result.ok())
+            .map(|byte| byte as u16)
+            .unwrap_or(0);
+        let character = String::from_utf16_lossy(&[raw_c]);
+        println!("{}", character);
+        self.registers[Register::R0 as usize] = raw_c;
+    }
+
+    fn trap_putsp(&mut self) {
+        let start_pos = self.registers[Register::R0 as usize] as usize;
+        let mut end_pos = self
+            .memory
+            .iter()
+            .skip(start_pos)
+            .position(|x| *x == 0)
+            .unwrap();
+
+        for &c in &self.registers[start_pos..end_pos] {
+            let char1 = (c & 0xFF) as u8;
+            let s = String::from_utf8_lossy(&[char1]);
+            print!("{}", s);
+            let char2 = (c >> 8) as u8;
+            let s = String::from_utf8_lossy(&[char2]);
+            print!("{}", s);
+        }
+    }
+
+    fn trap_halt(&mut self) {
+        print!("HALT");
+        self.running = false;
+    }
 }
+
+// TODO load program
