@@ -43,3 +43,11 @@ pub fn bit_mask(num_bits: u16) -> u16 {
 pub fn get_arg(instruction: u16, start_pos: u16, length: u16) -> u16 {
     (instruction >> start_pos) & bit_mask(length)
 }
+
+/// Convert a number from big-endian to little-endian
+///
+/// This method converts a 16 bit integer to have a different endian character. This is only
+/// necessary of platforms that are little endian.
+fn to_le(x: u16) -> u16 {
+    (x << 8) | (x >> 8)
+}

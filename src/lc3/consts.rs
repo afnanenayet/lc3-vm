@@ -114,6 +114,15 @@ pub enum ConditionFlag {
     NEG = 1 << 2,
 }
 
+/// The addresses of the available memory mapped registers
+pub enum MemoryMappedRegister {
+    /// Keyboard status
+    KBSR = 0xFE00,
+
+    /// Keyboard data
+    KBDR = 0xFE02,
+}
+
 /// The number of pointers that can be addressed. The LC3 virtual machine has 16-bit pointers, so
 /// the maximum addressable value is the max value of an unsigned 16 bit integer. 2 ^ 16 = 65536.
 pub const MEMORY_LIMIT: usize = std::u16::MAX as usize;

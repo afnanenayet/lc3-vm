@@ -5,10 +5,14 @@
 /// This module contains the struct representing the machine's state as well as methods
 /// for actually running the program.
 mod consts;
+
+#[macro_use]
 mod instruction;
 
-use consts::Register;
+use consts::{Op, Register};
 use instruction::{bit_mask, get_arg, sign_extend};
+use itertools::Itertools;
+use std::fs::File;
 use std::io::{self, Read};
 
 /// The data pertaining to the state of the LC3 VM
@@ -55,12 +59,52 @@ impl LC3 {
         // let mut op = instr >> 12;
 
         // fetch instruction here TODO: implement mem_read
+        let instr = 0;
         while self.running {
-            //match op {
-            //// TODO match each op here
-            //};
+            match op {
+                Op::LD => self.op_ld(instr),
+                Op::ADD => self.op_add(instr),
+                Op::LD => self.op_ld(instr),
+                Op::ST => self.op_st(instr),
+                Op::JSR => self.op_jsr(instr),
+                Op::AND => self.op_and(instr),
+                Op::LDR => self.op_ldr(instr),
+                Op::STR => self.op_str(instr),
+                Op::RTI => self.op_rti(instr),
+                Op::NOT => self.op_not(instr),
+                Op::LDI => self.op_ldi(instr),
+                Op::STI => self.op_sti(instr),
+                Op::JMP => self.op_jmp(instr),
+                Op::RES => self.op_res(instr),
+                Op::LEA => self.op_lea(instr),
+                //Op::TRAP => self.op_trap(instr), // TODO
+            }
         }
         unimplemented!();
+    }
+
+    /// Read a VM image and load it into memory
+    ///
+    /// This will read an LC3 image and load it into memory with the specified origin offset.
+    fn read_image_file(&mut self, filename: &str) -> io::Result<()> {
+        let mut f = File::open(filename)?;
+        let mut buf = Vec::<u8>::with_capacity(consts::MEMORY_LIMIT);
+        let origin_bytes = f.read_to_end(&mut buf);
+
+        // Rust reads one byte (8 bits) at a time. We will have to account for this and combine two
+        // 8-bit integers to one 16-bit integers
+
+        // The "origin" defines the initial offset for where memory should be loaded from the image
+        let origin = (buf[0] << 8) | buf[1];
+        let mut start_idx = origin as usize;
+
+        // Take two bytes at a time and reverse the endian-ness, placing the final 16-bit integer
+        // into a memory location
+        for (idx, chunk) in &buf.into_iter().skip(2).chunks(2).enumerate() {
+            let p = chunk[0] << 8 | chunk[1];
+            self.memory[idx] = p;
+        }
+        Ok(())
     }
 
     /// Update the condition flag
@@ -166,7 +210,7 @@ impl LC3 {
     fn op_ld(&mut self, instr: u16) {
         let r0 = get_arg(instr, 9, 3);
         let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
-        self.registers[r0 as usize] = mem_read(self.registers[Register::PC] + pc_offset);
+        self.registers[r0 as usize] = mem_read(self.registers[Register::PC as usize] + pc_offset);
         self.update_cond_flag(r0);
     }
 
@@ -174,7 +218,7 @@ impl LC3 {
         let r0 = get_arg(instr, 9, 3);
         let base_register = get_arg(instr, 6, 3);
         let offset = sign_extend(get_arg(instr, 0, 6), 6);
-        self.registers[r0 as usize] = mem_read(self.registers[r1 as usize] + offset);
+        self.registers[r0 as usize] = mem_read(self.registers[base_register as usize] + offset);
         self.update_cond_flag(r0);
     }
 
@@ -289,4 +333,4 @@ impl LC3 {
     }
 }
 
-// TODO load program
+// TODO memory mapped registers: https://justinmeiners.github.io/lc3-vm/index.html#1:11
