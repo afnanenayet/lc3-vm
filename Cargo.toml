@@ -11,3 +11,6 @@ termion = "1.5.3"
 # we use the num crates to easily let us convert between enums and integers
 num-traits = "0.2"
 num-derive = "0.2"
+structopt = "0.3"
+log = "0.4.8"
+pretty_env_logger = "0.3.1"

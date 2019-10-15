@@ -12,10 +12,13 @@ mod instruction;
 use consts::{MemoryMappedRegister, Op, Register};
 use instruction::getchar;
 use itertools::Itertools;
+use log::{debug, info};
+use num_traits::FromPrimitive;
 use std::{
     collections::HashMap,
     fs::File,
     io::{self, Read},
+    path::PathBuf,
 };
 
 /// The data pertaining to the state of the LC3 VM
@@ -42,27 +45,21 @@ impl LC3 {
     /// currently has very poor support for them. These should be switched to arrays once const
     /// generics are stabilized. You can play around with them in nightly builds.
     pub fn new() -> Self {
-        Self {
-            memory: Vec::with_capacity(consts::MEMORY_LIMIT),
-            registers: Vec::with_capacity(consts::Register::COUNT as usize),
+        let mut lc3 = Self {
+            memory: vec![0; consts::MEMORY_LIMIT],
+            registers: vec![0; consts::Register::COUNT as usize],
             running: false,
-        }
+        };
+        lc3.registers[Register::PC as usize] = consts::PC_START;
+        lc3
     }
 
     /// Execute the VM
     ///
     /// This will start a run-loop that processes instructions until the stop instruction is
     /// encountered.
-    pub fn run_loop(&mut self) -> u32 {
-        // Our circuit for determining whether execution should be terminated
+    pub fn run_loop(&mut self) {
         self.running = true;
-
-        let mut op = consts::Op::LD;
-        // let mut instr = mem_read(reg[Register::PC]++);
-        // let mut op = instr >> 12;
-
-        // fetch instruction here TODO: implement mem_read
-        let instr = 0;
         let op_dispatch_table = op_dispatch_table![
             (Op::BR, instruction::op::br),
             (Op::LD, instruction::op::ld),
@@ -83,39 +80,39 @@ impl LC3 {
             (Op::TRAP, instruction::op::trap)
         ];
         while self.running {
-            // Find the method that corresponds to the operation in the dispatch table. If the
-            // opcode is not in the dispatch table then the VM will panic and quit. If the opcode
-            // is fine, then we can invoke the function and modify the VM's state as necessary.
-            // TODO: better/more constructive error handling
-            let op_fn = op_dispatch_table
-                .get(&op)
-                .or_else(|| panic!("Aborting: unsupported or malformed OPCODE was supplied"))
-                .unwrap();
-            op_fn(self, instr);
+            let instr = self.mem_read(self.registers[Register::PC as usize]);
+            if let Some(op) = FromPrimitive::from_u16(instr >> 12) {
+                //info!("read op {:?} ({}) at PC", op, instr);
+                let op_fn = op_dispatch_table[&op];
+                op_fn(self, instr);
+            } else {
+                panic!("Unknown or malformed instruction");
+            }
         }
-        unimplemented!();
     }
 
     /// Read a VM image and load it into memory
     ///
     /// This will read an LC3 image and load it into memory with the specified origin offset.
-    fn read_image_file(&mut self, filename: &str) -> io::Result<()> {
+    pub fn read_image_file(&mut self, filename: &PathBuf) -> io::Result<()> {
         let mut f = File::open(filename)?;
         let mut buf = Vec::<u8>::with_capacity(consts::MEMORY_LIMIT);
-        let origin_bytes = f.read_to_end(&mut buf);
+        let read_bytes = f.read_to_end(&mut buf)?;
+        debug!("Read {} bytes from the provided image", read_bytes);
 
         // Rust reads one byte (8 bits) at a time. We will have to account for this and combine two
         // 8-bit integers to one 16-bit integers
 
         // The "origin" defines the initial offset for where memory should be loaded from the image
-        let origin = ((buf[0] as u16) << 8) | (buf[1] as u16);
+        let origin = ((buf[1] as u16) << 8) | (buf[0] as u16);
+        debug!("Image origin offset: {}", origin);
         let mut mem_idx = origin as usize;
 
         // Take two bytes at a time and reverse the endian-ness, placing the final 16-bit integer
         // into a memory location
         for mut chunk in &buf.into_iter().skip(2).chunks(2) {
             let p: u16 =
-                (chunk.next().unwrap_or(0) as u16) << 8 | (chunk.next().unwrap_or(0) as u16);
+                (chunk.next().unwrap_or(0) as u16) | (chunk.next().unwrap_or(0) as u16) << 8;
             self.memory[mem_idx] = p;
             mem_idx += 1;
         }
