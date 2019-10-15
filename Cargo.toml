@@ -7,3 +7,7 @@ edition = "2018"
 [dependencies]
 itertools = "0.8.0"
 termion = "1.5.3"
+
+# we use the num crates to easily let us convert between enums and integers
+num-traits = "0.2"
+num-derive = "0.2"

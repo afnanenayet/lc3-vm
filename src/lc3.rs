@@ -10,7 +10,7 @@ mod consts;
 mod instruction;
 
 use consts::{MemoryMappedRegister, Op, Register};
-use instruction::{bit_mask, get_arg, getchar, sign_extend};
+use instruction::getchar;
 use itertools::Itertools;
 use std::{
     collections::HashMap,
@@ -63,7 +63,7 @@ impl LC3 {
 
         // fetch instruction here TODO: implement mem_read
         let instr = 0;
-        let dispatch_table = op_dispatch_table![
+        let op_dispatch_table = op_dispatch_table![
             (Op::BR, instruction::op::br),
             (Op::LD, instruction::op::ld),
             (Op::ADD, instruction::op::add),
@@ -79,14 +79,15 @@ impl LC3 {
             (Op::STI, instruction::op::sti),
             (Op::JMP, instruction::op::jmp),
             (Op::RES, instruction::op::res),
-            (Op::LEA, instruction::op::lea)
+            (Op::LEA, instruction::op::lea),
+            (Op::TRAP, instruction::op::trap)
         ];
         while self.running {
             // Find the method that corresponds to the operation in the dispatch table. If the
             // opcode is not in the dispatch table then the VM will panic and quit. If the opcode
             // is fine, then we can invoke the function and modify the VM's state as necessary.
             // TODO: better/more constructive error handling
-            let op_fn = dispatch_table
+            let op_fn = op_dispatch_table
                 .get(&op)
                 .or_else(|| panic!("Aborting: unsupported or malformed OPCODE was supplied"))
                 .unwrap();
@@ -155,81 +156,5 @@ impl LC3 {
             }
         }
         self.memory[addr as usize]
-    }
-
-    /****** trap code implementations ******/
-
-    fn trap_puts(&mut self) {
-        // build up a string by looking for 16 bit integers until we hit the null terminator. The
-        // starting location of the string is whatever is at the r0 register
-        let start_pos = self.registers[Register::R0 as usize] as usize;
-        let end_pos = self
-            .memory
-            .iter()
-            .skip(start_pos)
-            .position(|x| *x == 0)
-            .unwrap();
-        print!(
-            "{}",
-            String::from_utf16_lossy(&self.memory[start_pos..end_pos])
-        );
-    }
-
-    fn trap_getc(&mut self) {
-        // Get the next character from stdin and convert it to a 16 bit integer so we can store it
-        // in the R0 register
-        let c = io::stdin()
-            .bytes()
-            .next()
-            .and_then(|result| result.ok())
-            .map(|byte| byte as u16)
-            .unwrap_or(0);
-        self.registers[Register::R0 as usize] = c;
-    }
-
-    fn trap_out(&mut self) {
-        let r0 = self.registers[Register::R0 as usize];
-        let character = String::from_utf16_lossy(&[r0]);
-        print!("{}", character);
-    }
-
-    fn trap_in(&mut self) {
-        print!("Enter a character: ");
-        let raw_c = io::stdin()
-            .bytes()
-            .next()
-            // We use the `and_then` call because there is no native cast from a u8 to a u16, so we
-            // have to promote the type from a `Result` type and do a primitive cast from u8 ->
-            // u16.
-            .and_then(|result| result.ok())
-            .map(|byte| byte as u16)
-            .unwrap_or(0);
-        let character = String::from_utf16_lossy(&[raw_c]);
-        println!("{}", character);
-        self.registers[Register::R0 as usize] = raw_c;
-    }
-
-    fn trap_putsp(&mut self) {
-        let start_pos = self.registers[Register::R0 as usize] as usize;
-        let mut end_pos = self
-            .memory
-            .iter()
-            .skip(start_pos)
-            .position(|x| *x == 0)
-            .unwrap();
-
-        for &c in &self.registers[start_pos..end_pos] {
-            let char1 = vec![(c & 0xFF) as u8];
-            let s = String::from_utf8_lossy(char1.as_slice());
-            print!("{}", s);
-            let char2 = vec![(c >> 8) as u8];
-            let s = String::from_utf8_lossy(char2.as_slice());
-            print!("{}", s);
-        }
-    }
-
-    fn trap_halt(&mut self) {
-        print!("HALT");
-        self.running = false;
     }
 }

@@ -3,7 +3,13 @@
 /// All of these methods have the same structure: they take a mutable reference to the LC3 VM state
 /// and an instruction, which is a 16-bit integer.
 use super::{bit_mask, get_arg, sign_extend};
-use crate::lc3::{consts::Register, LC3};
+use crate::lc3::{
+    consts::{self, Register, Trap},
+    instruction::trap,
+    LC3,
+};
+use num_traits::FromPrimitive;
+use std::collections::HashMap;
 
 pub fn add(vm: &mut LC3, instr: u16) {
     // destination register (DR)
@@ -138,4 +144,28 @@ pub fn str(vm: &mut LC3, instr: u16) {
         vm.registers[r1 as usize] + offset,
         vm.registers[r0 as usize],
     );
+}
+
+/// This routine is dispatched when a trap code is encountered.
+///
+/// This method will extract the trap code from the instruction and call the appropriate
+/// corresponding function.
+pub fn trap(vm: &mut LC3, instr: u16) {
+    let trap_dispatch_table = trap_dispatch_table![
+        (Trap::GETC, trap::getc),
+        (Trap::OUT, trap::out),
+        (Trap::PUTS, trap::puts),
+        (Trap::IN, trap::putsp),
+        (Trap::HALT, trap::halt)
+    ];
+    let raw_trap_code = (instr as u16) & 0xFF;
+
+    // An invalid trap call will lead to the VM halting
+    let trap_code = FromPrimitive::from_u16(raw_trap_code).unwrap_or(Trap::HALT);
+
+    if let Some(trap_fn) = trap_dispatch_table.get(&trap_code) {
+        trap_fn(vm);
+    } else {
+        panic!("Unknown or malformed trap code encountered");
+    }
 }

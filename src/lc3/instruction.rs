@@ -5,7 +5,38 @@ use std::{
     io::{stdin, Read},
 };
 
+/// Generate a type-safe function dispatch table for opcodes
+///
+/// This method generates a hashmap where the keys are opcode enums and the values are pointers to
+/// functions that can modify the VM. This method will generate an entry for every opcode -
+/// function pair.
+macro_rules! op_dispatch_table {
+    ( $( ($op:expr, $fn:expr) ),* ) => {
+        {
+            let mut table: HashMap<consts::Op, fn(&mut LC3, u16)> = HashMap::new();
+            $( table.insert($op, $fn); )*
+            table
+        }
+    };
+}
+
+/// Generate a type-safe function dispatch table for trap codes
+///
+/// This method generates a hashmap where the keys are opcode enums and the values are pointers to
+/// functions that can modify the VM. This method will generate an entry for every trapcode -
+/// function pair.
+macro_rules! trap_dispatch_table {
+    ( $( ($op:expr, $fn:expr) ),* ) => {
+        {
+            let mut table: HashMap<consts::Trap, fn(&mut LC3)> = HashMap::new();
+            $( table.insert($op, $fn); )*
+            table
+        }
+    };
+}
+
 pub mod op;
+pub mod trap;
 
 /// Extend an immediate mode value to be 16 bits
 ///
@@ -66,19 +97,3 @@ pub fn getchar() -> u8 {
     stdin().read(&mut buf);
     buf[0]
 }
-
-/// Generate a function dispatch table for opcodes
-///
-/// This method generates a hashmap where the keys are opcode enums and the values are pointers to
-/// functions that can modify the VM. This method will generate an entry for every opcode -
-/// function pair.
-macro_rules! op_dispatch_table {
-    ( $( ($op:expr, $fn:expr) ),* ) => {
-        {
-            let mut table: HashMap<consts::Op, fn(&mut LC3, u16)> = HashMap::new();
-            $( table.insert($op, $fn); )*
-            table
-        }
-    };
-}
-
