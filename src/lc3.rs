@@ -9,7 +9,7 @@ pub mod consts;
 #[macro_use]
 mod instruction;
 
-use consts::{MemoryMappedRegister, Op, Register};
+use consts::{Instruction, MemoryMappedRegister, Op, OpDispatchTable, Register};
 use instruction::getchar;
 use itertools::Itertools;
 use log::{debug, info};
@@ -20,6 +20,44 @@ use std::{
     io::{self, Read},
     path::PathBuf,
 };
+
+/// The lookup tables for the VM
+///
+/// We store the lookup tables here so we don't have to keep re-initializing them in the function
+pub struct DispatchTables {
+    /// The dispatch table for various opcodes
+    pub opcodes: OpDispatchTable,
+}
+
+impl DispatchTables {
+    /// Create a new set of dispatch tables
+    ///
+    /// This iniitalizes the struct with properly defined dispatch tables
+    pub fn new() -> Self {
+        let op_dispatch_table = op_dispatch_table![
+            (Op::BR, instruction::op::br),
+            (Op::LD, instruction::op::ld),
+            (Op::ADD, instruction::op::add),
+            (Op::LD, instruction::op::ld),
+            (Op::ST, instruction::op::st),
+            (Op::JSR, instruction::op::jsr),
+            (Op::AND, instruction::op::and),
+            (Op::LDR, instruction::op::ldr),
+            (Op::STR, instruction::op::str),
+            (Op::RTI, instruction::op::rti),
+            (Op::NOT, instruction::op::not),
+            (Op::LDI, instruction::op::ldi),
+            (Op::STI, instruction::op::sti),
+            (Op::JMP, instruction::op::jmp),
+            (Op::RES, instruction::op::res),
+            (Op::LEA, instruction::op::lea),
+            (Op::TRAP, instruction::op::trap)
+        ];
+        Self {
+            opcodes: op_dispatch_table,
+        }
+    }
+}
 
 /// The data pertaining to the state of the LC3 VM
 #[derive(Clone, Debug)]
@@ -58,36 +96,40 @@ impl LC3 {
     ///
     /// This will start a run-loop that processes instructions until the stop instruction is
     /// encountered.
-    pub fn run_loop(&mut self) {
+    pub fn run_loop(&mut self, tables: &DispatchTables) {
         self.running = true;
-        let op_dispatch_table = op_dispatch_table![
-            (Op::BR, instruction::op::br),
-            (Op::LD, instruction::op::ld),
-            (Op::ADD, instruction::op::add),
-            (Op::LD, instruction::op::ld),
-            (Op::ST, instruction::op::st),
-            (Op::JSR, instruction::op::jsr),
-            (Op::AND, instruction::op::and),
-            (Op::LDR, instruction::op::ldr),
-            (Op::STR, instruction::op::str),
-            (Op::RTI, instruction::op::rti),
-            (Op::NOT, instruction::op::not),
-            (Op::LDI, instruction::op::ldi),
-            (Op::STI, instruction::op::sti),
-            (Op::JMP, instruction::op::jmp),
-            (Op::RES, instruction::op::res),
-            (Op::LEA, instruction::op::lea),
-            (Op::TRAP, instruction::op::trap)
-        ];
         while self.running {
-            let instr = self.mem_read(self.registers[Register::PC as usize]);
-            if let Some(op) = FromPrimitive::from_u16(instr >> 12) {
-                //info!("read op {:?} ({}) at PC", op, instr);
-                let op_fn = op_dispatch_table[&op];
-                op_fn(self, instr);
-            } else {
-                panic!("Unknown or malformed instruction");
-            }
+            self.step(tables);
+        }
+    }
+
+    /// Get the next opcode for execution
+    ///
+    /// This method will find the register index pointed to by the program counter, which returns a
+    /// memory address. This method parses the value at the memory address to figure out the next
+    /// operation.
+    ///
+    /// This will panic if the register is invalid
+    pub fn parse_next_op(&self) -> Op {
+        let register_index = self.registers[Register::PC as usize];
+        let raw_op = self.memory[register_index as usize];
+        FromPrimitive::from_u16(raw_op >> 12).unwrap()
+    }
+
+    /// Read an instruction from the register pointed to by the program counter and execute it
+    ///
+    /// This is one step of execution in the VM. The VM should continuously run steps in a loop,
+    /// though it is split out into a function for easy debugging.
+    pub fn step(&mut self, tables: &DispatchTables) {
+        let op_dispatch_table = &tables.opcodes;
+        let instr = self.mem_read(self.registers[Register::PC as usize]);
+        if let Some(op) = FromPrimitive::from_u16(instr >> 12) {
+            info!("read op {:?} ({}) at PC", op, instr);
+            let op_fn = op_dispatch_table[&op];
+            op_fn(self, instr);
+        } else {
+            self.running = false;
+            println!("PANIC: Unknown opcode encountered");
         }
     }
 

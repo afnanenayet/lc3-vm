@@ -1,5 +1,7 @@
-/// Constant values that pertain to the LC3 virtual machine
+use crate::lc3::LC3;
 use num_derive::{FromPrimitive, ToPrimitive};
+/// Constant values that pertain to the LC3 virtual machine
+use std::collections::HashMap;
 
 /// An enum representing the different types of registers
 ///
@@ -132,3 +134,9 @@ pub const MEMORY_LIMIT: usize = std::u16::MAX as usize;
 
 /// The default start position for the program counter
 pub const PC_START: u16 = 0x3000;
+
+/// A type representing the dispatch table for opcodes
+pub type OpDispatchTable = HashMap<Op, fn(&mut LC3, instr: u16)>;
+
+/// A convenient type alias for a 16 bit instruction
+pub type Instruction = u16;
