@@ -58,7 +58,7 @@ pub fn r#in(vm: &mut LC3) {
 
 pub fn putsp(vm: &mut LC3) {
     let start_pos = vm.registers[Register::R0 as usize] as usize;
-    let mut end_pos = vm
+    let end_pos = vm
         .memory
         .iter()
         .skip(start_pos)

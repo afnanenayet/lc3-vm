@@ -4,7 +4,7 @@
 ///
 /// This module contains the struct representing the machine's state as well as methods
 /// for actually running the program.
-mod consts;
+pub mod consts;
 
 #[macro_use]
 mod instruction;
@@ -28,11 +28,11 @@ pub struct LC3 {
     ///
     /// The memory addresses are bounded by the limit for the unsigned 16 bit integer, which is
     /// 65536. There are `U16_MAX` addressable locations in memory.
-    memory: Vec<u16>,
+    pub memory: Vec<u16>,
 
     /// A vector of the available registers in the VM. The registers are defined in the `Register`
     /// enum in `lc3::consts`.
-    registers: Vec<u16>,
+    pub registers: Vec<u16>,
 
     /// State flag representing whether or not the machine is currently running
     running: bool,

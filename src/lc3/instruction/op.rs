@@ -55,13 +55,15 @@ pub fn and(vm: &mut LC3, instr: u16) {
 }
 
 /// This operation is unused and will abort the VM
-pub fn rti(vm: &mut LC3, instr: u16) {
-    // TODO: abort
+pub fn rti(vm: &mut LC3, _: u16) {
+    println!("PANIC: illegal instruction (RTI)");
+    vm.running = false;
 }
 
 /// This operation is unused and will abort the VM
-pub fn res(vm: &mut LC3, instr: u16) {
-    // TODO: abort
+pub fn res(vm: &mut LC3, _: u16) {
+    println!("PANIC: illegal instruction (RES)");
+    vm.running = false;
 }
 
 pub fn not(vm: &mut LC3, instr: u16) {
@@ -155,7 +157,8 @@ pub fn trap(vm: &mut LC3, instr: u16) {
         (Trap::GETC, trap::getc),
         (Trap::OUT, trap::out),
         (Trap::PUTS, trap::puts),
-        (Trap::IN, trap::putsp),
+        (Trap::PUTSP, trap::putsp),
+        (Trap::IN, trap::r#in),
         (Trap::HALT, trap::halt)
     ];
     let raw_trap_code = (instr as u16) & 0xFF;
@@ -166,6 +169,7 @@ pub fn trap(vm: &mut LC3, instr: u16) {
     if let Some(trap_fn) = trap_dispatch_table.get(&trap_code) {
         trap_fn(vm);
     } else {
-        panic!("Unknown or malformed trap code encountered");
+        println!("PANIC: Unknown or malformed trap code encountered");
+        vm.running = false;
     }
 }
