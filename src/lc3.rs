@@ -170,7 +170,7 @@ impl LC3 {
         // into a memory location
         for mut chunk in &buf.into_iter().skip(2).chunks(2) {
             // Reverse the endian-ness of the incoming 16-bit instruction
-            let p: u16 = u16::from(chunk.next().unwrap_or_default())
+            let p: u16 = u16::from(chunk.next().unwrap_or_default()) << 8
                 | u16::from(chunk.next().unwrap_or_default());
             self.memory[mem_idx] = p;
             mem_idx += 1;

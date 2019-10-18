@@ -51,7 +51,6 @@ fn main() -> Result<(), io::Error> {
         // waste a lot of resources just constantly repainting).
         loop {
             // get next key and perform appropriate action
-            buf.clear();
             reader.read_to_string(&mut buf)?;
             match buf.as_ref() {
                 "q" => {
@@ -65,6 +64,7 @@ fn main() -> Result<(), io::Error> {
                 }
                 _ => (),
             }
+            buf.clear();
         }
     } else {
         vm.run_loop(&tables);
