@@ -2,20 +2,13 @@
 ///
 /// This provides a way to step through instructions and inspect memory through the execution of a
 /// program, allowing the user to either debug the VM or the program.
-use crate::lc3::consts::Op;
 use crate::lc3::{consts::Register, DispatchTables, LC3};
 use num_traits::FromPrimitive;
 use std::io;
-use std::rc::Rc;
-use termion::event::Event;
 use tui::backend::Backend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::style::{Color, Modifier, Style};
-use tui::widgets::canvas::{Canvas, Line, Map, MapResolution, Rectangle};
-use tui::widgets::{
-    Axis, BarChart, Block, Borders, Chart, Dataset, Gauge, List, Marker, Paragraph, Row,
-    SelectableList, Sparkline, Table, Tabs, Text, Widget,
-};
+use tui::style::{Modifier, Style};
+use tui::widgets::{Block, Borders, Paragraph, Row, Table, Text, Widget};
 use tui::{Frame, Terminal};
 
 /// A struct representing the state of the debugging TUI
@@ -59,7 +52,7 @@ pub fn draw<B: Backend>(terminal: &mut Terminal<B>, app: &Debugger) -> Result<()
             .borders(Borders::ALL)
             .render(&mut f, chunks[0]);
         Block::default()
-            .title("Instructions")
+            .title("ExecutionInstructions")
             .borders(Borders::ALL)
             .render(&mut f, chunks[1]);
         draw_registers(&mut f, &app, chunks[0]);
@@ -104,30 +97,31 @@ fn draw_register<B: Backend>(f: &mut Frame<B>, app: &Debugger, area: Rect, regis
 
 /// Maintains a list of the instruction/opcode history and displays the next one to the user
 fn draw_instr_history<B: Backend>(f: &mut Frame<B>, app: &Debugger, area: Rect) {
-    // Convert all of the items in the history to the proper `Text` type. Every item is stylized
-    // normally, except for the last item, which is the item that is ABOUT to be executed (the
-    // current op), which is in bold.
-    //let text: Vec<Vec<String>> = app
-    //.op_history
-    //.iter()
-    //.enumerate()
-    //.map(|(idx, s)| vec![format!("{}", idx), s.clone()])
-    //.collect();
-    let headers = ["Tick", "Opcode"];
-    let text = vec![vec!["test", "test"], vec!["test", "test"]];
-    let rows = text.iter().enumerate().map(|(idx, item)| {
-        if idx == app.op_history.len() - 1 {
-            Row::StyledData(item.iter(), Style::default().modifier(Modifier::BOLD))
+    let headers = ["Tick", "Instruction"];
+
+    // We need to create a vector that owns the strings so that we can reference them with
+    // iterators for the table
+    let row_data: Vec<Vec<String>> = app
+        .op_history
+        .iter()
+        .enumerate()
+        .map(|(idx, item)| vec![format!("{}", idx), item.clone()])
+        .collect();
+    let rows = row_data.iter().enumerate().map(|(idx, item)| {
+        let style = if idx == app.op_history.len() - 1 {
+            Style::default().modifier(Modifier::BOLD)
         } else {
-            Row::StyledData(item.iter(), Style::default())
-        }
+            Style::default()
+        };
+        Row::StyledData(item.iter(), style)
     });
     // There's no point trying to render a widget if there's nothing to render
     let rects = Layout::default()
         .constraints([Constraint::Percentage(100)].as_ref())
-        .margin(2)
+        .margin(1)
         .split(area);
-    Table::new(headers.into_iter(), rows)
+    Table::new(headers.iter(), rows)
         .block(Block::default())
+        .widths(&[10, 10])
         .render(f, rects[0]);
 }

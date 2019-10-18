@@ -9,7 +9,7 @@ pub mod consts;
 #[macro_use]
 mod instruction;
 
-use consts::{Instruction, MemoryMappedRegister, Op, OpDispatchTable, Register};
+use consts::{MemoryMappedRegister, Op, OpDispatchTable, Register, Trap};
 use instruction::getchar;
 use itertools::Itertools;
 use log::{debug, info};
@@ -74,6 +74,9 @@ pub struct LC3 {
 
     /// State flag representing whether or not the machine is currently running
     running: bool,
+
+    /// Whether the VM is currently executing a trap code
+    trap: bool,
 }
 
 impl LC3 {
@@ -87,6 +90,7 @@ impl LC3 {
             memory: vec![0; consts::MEMORY_LIMIT],
             registers: vec![0; consts::Register::COUNT as usize],
             running: false,
+            trap: false,
         };
         lc3.registers[Register::PC as usize] = consts::PC_START;
         lc3
@@ -110,19 +114,28 @@ impl LC3 {
     /// operation.
     ///
     /// This will panic if the register is invalid
-    pub fn parse_next_op(&self) -> Op {
+    pub fn parse_next_op(&self) -> consts::Operation {
         let register_index = self.registers[Register::PC as usize];
         let raw_op = self.memory[register_index as usize];
-        FromPrimitive::from_u16(raw_op >> 12).unwrap()
+        let op = FromPrimitive::from_u16(raw_op >> 12).unwrap();
+
+        // If the opcode points to a trapcode, then display the trapcode
+        if op == Op::TRAP {
+            let trap = FromPrimitive::from_u16(raw_op & 0xFF).unwrap_or(Trap::HALT);
+            return consts::Operation::Trap(trap);
+        }
+        consts::Operation::Op(op)
     }
 
     /// Read an instruction from the register pointed to by the program counter and execute it
     ///
     /// This is one step of execution in the VM. The VM should continuously run steps in a loop,
-    /// though it is split out into a function for easy debugging.
+    /// though it is split out into a function for easy debugging. This method will read the
+    /// instruction, dispatch the appropriate function, and increment the program counter.
     pub fn step(&mut self, tables: &DispatchTables) {
         let op_dispatch_table = &tables.opcodes;
         let instr = self.mem_read(self.registers[Register::PC as usize]);
+        self.registers[Register::PC as usize] += 1;
         if let Some(op) = FromPrimitive::from_u16(instr >> 12) {
             info!("read op {:?} ({}) at PC", op, instr);
             let op_fn = op_dispatch_table[&op];
@@ -138,7 +151,10 @@ impl LC3 {
     /// This will read an LC3 image and load it into memory with the specified origin offset.
     pub fn read_image_file(&mut self, filename: &PathBuf) -> io::Result<()> {
         let mut f = File::open(filename)?;
-        let mut buf = Vec::<u8>::with_capacity(consts::MEMORY_LIMIT);
+
+        // The memory limit defines how many 16-bit memory pointers we can have, so we multiply the
+        // memory limit by two because we read 8-bit integers.
+        let mut buf = Vec::<u8>::with_capacity(consts::MEMORY_LIMIT * 2);
         let read_bytes = f.read_to_end(&mut buf)?;
         debug!("Read {} bytes from the provided image", read_bytes);
 
@@ -146,15 +162,16 @@ impl LC3 {
         // 8-bit integers to one 16-bit integers
 
         // The "origin" defines the initial offset for where memory should be loaded from the image
-        let origin = ((buf[1] as u16) << 8) | (buf[0] as u16);
+        let origin = (u16::from(buf[0]) << 8) | u16::from(buf[1]);
         debug!("Image origin offset: {}", origin);
         let mut mem_idx = origin as usize;
 
         // Take two bytes at a time and reverse the endian-ness, placing the final 16-bit integer
         // into a memory location
         for mut chunk in &buf.into_iter().skip(2).chunks(2) {
-            let p: u16 =
-                (chunk.next().unwrap_or(0) as u16) | (chunk.next().unwrap_or(0) as u16) << 8;
+            // Reverse the endian-ness of the incoming 16-bit instruction
+            let p: u16 = u16::from(chunk.next().unwrap_or_default())
+                | u16::from(chunk.next().unwrap_or_default());
             self.memory[mem_idx] = p;
             mem_idx += 1;
         }

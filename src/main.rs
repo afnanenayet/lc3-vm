@@ -5,7 +5,7 @@ use std::{
     path::PathBuf,
 };
 use structopt::StructOpt;
-use termion::{raw::IntoRawMode, AsyncReader};
+use termion::raw::IntoRawMode;
 use tui::{backend::TermionBackend, Terminal};
 
 mod debugger;
@@ -32,6 +32,7 @@ fn main() -> Result<(), io::Error> {
     debug!("Initialized VM");
     let mut vm = lc3::LC3::new();
     let tables = lc3::DispatchTables::new();
+    vm.read_image_file(&opt.image_file)?;
 
     if opt.debug {
         let mut stdout = io::stdout().into_raw_mode()?;
@@ -42,9 +43,13 @@ fn main() -> Result<(), io::Error> {
         let mut reader = termion::async_stdin();
         let mut buf = String::new();
 
-        loop {
-            debugger::draw(&mut terminal, &debug_state)?;
+        // Draw the initial state
+        debugger::draw(&mut terminal, &debug_state)?;
 
+        // We don't call the draw method on every iteration of the loop because we don't need to
+        // repaint the screen constantly, only when the display output changes (otherwise this will
+        // waste a lot of resources just constantly repainting).
+        loop {
             // get next key and perform appropriate action
             buf.clear();
             reader.read_to_string(&mut buf)?;
@@ -54,12 +59,15 @@ fn main() -> Result<(), io::Error> {
                     write!(stdout, "{}", termion::clear::All)?;
                     return Ok(());
                 }
-                "n" => debug_state.tick(&tables),
+                "n" => {
+                    debug_state.tick(&tables);
+                    debugger::draw(&mut terminal, &debug_state)?;
+                }
                 _ => (),
             }
         }
+    } else {
+        vm.run_loop(&tables);
     }
-    vm.read_image_file(&opt.image_file)?;
-    vm.run_loop(&tables);
     Ok(())
 }

@@ -29,7 +29,7 @@ pub fn getc(vm: &mut LC3) {
         .bytes()
         .next()
         .and_then(|result| result.ok())
-        .map(|byte| byte as u16)
+        .map(u16::from)
         .unwrap_or(0);
     vm.registers[Register::R0 as usize] = c;
 }
@@ -49,7 +49,7 @@ pub fn r#in(vm: &mut LC3) {
         // have to promote the type from a `Result` type and do a primitive cast from u8 ->
         // u16.
         .and_then(|result| result.ok())
-        .map(|byte| byte as u16)
+        .map(u16::from)
         .unwrap_or(0);
     let character = String::from_utf16_lossy(&[raw_c]);
     println!("{}", character);

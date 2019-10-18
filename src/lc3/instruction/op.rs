@@ -76,7 +76,7 @@ pub fn not(vm: &mut LC3, instr: u16) {
 pub fn br(vm: &mut LC3, instr: u16) {
     let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
     let cond_flag = get_arg(instr, 9, 3);
-    if cond_flag & vm.registers[Register::COND as usize] != 1 {
+    if cond_flag & vm.registers[Register::COND as usize] != 0 {
         vm.registers[Register::PC as usize] += pc_offset;
     }
 }
@@ -153,6 +153,7 @@ pub fn str(vm: &mut LC3, instr: u16) {
 /// This method will extract the trap code from the instruction and call the appropriate
 /// corresponding function.
 pub fn trap(vm: &mut LC3, instr: u16) {
+    vm.trap = true;
     let trap_dispatch_table = trap_dispatch_table![
         (Trap::GETC, trap::getc),
         (Trap::OUT, trap::out),
@@ -168,6 +169,7 @@ pub fn trap(vm: &mut LC3, instr: u16) {
 
     if let Some(trap_fn) = trap_dispatch_table.get(&trap_code) {
         trap_fn(vm);
+        vm.trap = false;
     } else {
         println!("PANIC: Unknown or malformed trap code encountered");
         vm.running = false;

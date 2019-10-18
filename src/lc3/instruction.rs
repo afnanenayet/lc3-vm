@@ -1,9 +1,6 @@
 /// This module contains helper methods to implement various instructions
-use crate::lc3::consts::{ConditionFlag, Op};
-use std::{
-    collections::HashMap,
-    io::{stdin, Read},
-};
+use crate::lc3::consts::ConditionFlag;
+use std::io::{stdin, Read};
 
 /// Generate a type-safe function dispatch table for opcodes
 ///
@@ -81,19 +78,11 @@ pub fn get_arg(instruction: u16, start_pos: u16, length: u16) -> u16 {
     (instruction >> start_pos) & bit_mask(length)
 }
 
-/// Convert a number from big-endian to little-endian
-///
-/// This method converts a 16 bit integer to have a different endian character. This is only
-/// necessary of platforms that are little endian.
-fn to_le(x: u16) -> u16 {
-    (x << 8) | (x >> 8)
-}
-
 /// Replicates the behavior of C's `getchar()`
 ///
 /// This method will read one byte from STDIN
 pub fn getchar() -> u8 {
     let mut buf = [0];
-    stdin().read(&mut buf);
+    stdin().read(&mut buf).unwrap_or_default();
     buf[0]
 }

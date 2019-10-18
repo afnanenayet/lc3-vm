@@ -109,7 +109,7 @@ pub enum Trap {
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, ToPrimitive, FromPrimitive)]
 pub enum ConditionFlag {
     /// Positive: P
-    POS = 1 << 0,
+    POS = 1, // 1 << 0
 
     /// Zero: Z
     ZRO = 1 << 1,
@@ -138,5 +138,12 @@ pub const PC_START: u16 = 0x3000;
 /// A type representing the dispatch table for opcodes
 pub type OpDispatchTable = HashMap<Op, fn(&mut LC3, instr: u16)>;
 
-/// A convenient type alias for a 16 bit instruction
-pub type Instruction = u16;
+/// An operation that can either be an opcode or a trap code
+#[derive(Debug)]
+pub enum Operation {
+    /// A trapcode
+    Trap(Trap),
+
+    /// An opcode
+    Op(Op),
+}
