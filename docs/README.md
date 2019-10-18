@@ -10,8 +10,6 @@ well as the state of the registers at each iteration.
 
 [![asciicast](https://asciinema.org/a/gjmyL3thLqxmffcu0tpoZPSZh.svg)](https://asciinema.org/a/gjmyL3thLqxmffcu0tpoZPSZh)
 
-<script id="asciicast-gjmyL3thLqxmffcu0tpoZPSZh" src="https://asciinema.org/a/gjmyL3thLqxmffcu0tpoZPSZh.js" async></script>
-
 ## Compilation
 
 Build this project with `cargo build --release` (it targets stable Rust).
