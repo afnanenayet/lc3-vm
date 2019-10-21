@@ -52,7 +52,7 @@ pub fn draw<B: Backend>(terminal: &mut Terminal<B>, app: &Debugger) -> Result<()
             .borders(Borders::ALL)
             .render(&mut f, chunks[0]);
         Block::default()
-            .title("ExecutionInstructions")
+            .title("Execution")
             .borders(Borders::ALL)
             .render(&mut f, chunks[1]);
         draw_registers(&mut f, &app, chunks[0]);
