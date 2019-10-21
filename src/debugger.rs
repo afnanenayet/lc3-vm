@@ -7,8 +7,8 @@ use num_traits::FromPrimitive;
 use std::io;
 use tui::backend::Backend;
 use tui::layout::{Constraint, Direction, Layout, Rect};
-use tui::style::{Modifier, Style};
-use tui::widgets::{Block, Borders, Paragraph, Row, Table, Text, Widget};
+use tui::style::{Color, Modifier, Style};
+use tui::widgets::{Block, Borders, Row, SelectableList, Table, Widget};
 use tui::{Frame, Terminal};
 
 /// A struct representing the state of the debugging TUI
@@ -72,7 +72,7 @@ fn draw_registers<B: Backend>(f: &mut Frame<B>, app: &Debugger, area: Rect) {
         .split(area);
 
     // can't use map here because iterators are lazy and it won't execute without collecting a
-    // return value from the function
+    // return value from the function, so we have to iterate through the loop
     for (idx, &c) in chunks.iter().enumerate() {
         draw_register(f, &app, c, idx);
     }
@@ -80,18 +80,29 @@ fn draw_registers<B: Backend>(f: &mut Frame<B>, app: &Debugger, area: Rect) {
 
 /// Draw an individual register debugging block
 ///
-/// `register_idx` is the index of the register to print
+/// `register_idx` is the index of the register to print. This UI element prints the value of the
+/// register in binary, hex, and as a regular integer in a vertical table.
 fn draw_register<B: Backend>(f: &mut Frame<B>, app: &Debugger, area: Rect, register_idx: usize) {
+    let register_value = app.vm.registers[register_idx];
+
+    // A vector with the different representations of the register value to print in the register
+    // debugger
+    let register_strings = vec![
+        format!("{:b}", register_value),
+        format!("{:x}", register_value),
+        format!("{}", register_value),
+    ];
     let register_enum: Register = FromPrimitive::from_usize(register_idx).unwrap();
     let register_name = format!("{:?}", register_enum);
-    let register_value = vec![Text::raw(format!("{:b}", app.vm.registers[register_idx]))];
-    Paragraph::new(register_value.iter())
+
+    SelectableList::default()
         .block(
             Block::default()
-                .borders(Borders::ALL)
                 .title(&register_name)
-                .title_style(Style::default().modifier(Modifier::BOLD)),
+                .title_style(Style::default().modifier(Modifier::BOLD))
+                .borders(Borders::ALL),
         )
+        .items(&register_strings)
         .render(f, area);
 }
 
@@ -107,21 +118,23 @@ fn draw_instr_history<B: Backend>(f: &mut Frame<B>, app: &Debugger, area: Rect) 
         .enumerate()
         .map(|(idx, item)| vec![format!("{}", idx), item.clone()])
         .collect();
-    let rows = row_data.iter().enumerate().map(|(idx, item)| {
-        let style = if idx == app.op_history.len() - 1 {
-            Style::default().modifier(Modifier::BOLD)
+    // Make the last instruction (the current one) bold
+    let rows = row_data.iter().rev().enumerate().map(|(idx, item)| {
+        let style = if idx == 0 {
+            Style::default().fg(Color::Green)
         } else {
             Style::default()
         };
         Row::StyledData(item.iter(), style)
     });
-    // There's no point trying to render a widget if there's nothing to render
     let rects = Layout::default()
         .constraints([Constraint::Percentage(100)].as_ref())
         .margin(1)
         .split(area);
     Table::new(headers.iter(), rows)
-        .block(Block::default())
+        .header_style(Style::default().modifier(Modifier::BOLD))
+        .block(Block::default().borders(Borders::NONE))
         .widths(&[10, 10])
+        .column_spacing(2)
         .render(f, rects[0]);
 }
