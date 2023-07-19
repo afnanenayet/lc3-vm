@@ -5,13 +5,13 @@ authors = ["Afnan Enayet <afnan@afnan.io>"]
 edition = "2018"
 
 [dependencies]
-itertools = "0.8.0"
-termion = "1.5.3"
+itertools = "0.8.2"
+termion = "1.5.6"
 
 # we use the num crates to easily let us convert between enums and integers
 num-traits = "0.2"
 num-derive = "0.2"
 structopt = "0.3"
-log = "0.4.8"
+log = "0.4.19"
 pretty_env_logger = "0.3.1"
 tui = "0.6.2"
