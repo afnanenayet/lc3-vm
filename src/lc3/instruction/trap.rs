@@ -1,5 +1,5 @@
 use crate::lc3::{consts::Register, LC3};
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 
 /// Implementations of the trap routines in the LC3 architecture.
 ///
@@ -20,6 +20,7 @@ pub fn puts(vm: &mut LC3) {
         "{}",
         String::from_utf16_lossy(&vm.memory[start_pos..start_pos + end_pos])
     );
+    io::stdout().flush().unwrap_or(());
 }
 
 pub fn getc(vm: &mut LC3) {
@@ -38,10 +39,12 @@ pub fn out(vm: &mut LC3) {
     let r0 = vm.registers[Register::R0 as usize];
     let character = String::from_utf16_lossy(&[r0]);
     print!("{}", character);
+    io::stdout().flush().unwrap_or(());
 }
 
 pub fn r#in(vm: &mut LC3) {
     print!("Enter a character: ");
+    io::stdout().flush().unwrap_or(());
     let raw_c = io::stdin()
         .bytes()
         .next()
@@ -73,9 +76,11 @@ pub fn putsp(vm: &mut LC3) {
         let s = String::from_utf8_lossy(char2.as_slice());
         print!("{}", s);
     }
+    io::stdout().flush().unwrap_or(());
 }
 
 pub fn halt(vm: &mut LC3) {
     print!("HALT");
+    io::stdout().flush().unwrap_or(());
     vm.halt();
 }
