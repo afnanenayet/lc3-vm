@@ -91,8 +91,9 @@ pub fn jsr(vm: &mut LC3, instr: u16) {
     let long_flag = get_arg(instr, 11, 1);
     let long_pc_offset = sign_extend(get_arg(instr, 0, 11), 11);
 
+    vm.registers[Register::R7 as usize] = vm.registers[Register::PC as usize];
     vm.registers[Register::PC as usize] = if long_flag != 0 {
-        long_pc_offset
+        vm.registers[Register::PC as usize].wrapping_add(long_pc_offset)
     } else {
         vm.registers[r1 as usize]
     };
