@@ -59,17 +59,16 @@ impl DispatchTables {
 }
 
 /// The data pertaining to the state of the LC3 VM
-#[derive(Clone, Debug)]
 pub struct LC3 {
-    /// A vector representing the memory locations available to the virtual machine.
+    /// The memory locations available to the virtual machine.
     ///
     /// The memory addresses are bounded by the limit for the unsigned 16 bit integer, which is
     /// 65536. There are `U16_MAX` addressable locations in memory.
-    pub memory: Vec<u16>,
+    pub memory: Box<[u16; consts::MEMORY_LIMIT]>,
 
-    /// A vector of the available registers in the VM. The registers are defined in the `Register`
+    /// The available registers in the VM. The registers are defined in the `Register`
     /// enum in `lc3::consts`.
-    pub registers: Vec<u16>,
+    pub registers: [u16; consts::REGISTER_COUNT],
 
     /// State flag representing whether or not the machine is currently running
     running: bool,
@@ -80,14 +79,18 @@ pub struct LC3 {
 
 impl LC3 {
     /// Create a new LC3 virtual machine state
-    ///
-    /// This initializes the virtual register and memory vectors. We don't use arrays because Rust
-    /// currently has very poor support for them. These should be switched to arrays once const
-    /// generics are stabilized. You can play around with them in nightly builds.
     pub fn new() -> Self {
+        // Allocate memory on the heap via Vec to avoid stack overflow,
+        // then convert to a boxed array.
+        let memory: Box<[u16; consts::MEMORY_LIMIT]> = {
+            let v = vec![0u16; consts::MEMORY_LIMIT];
+            let boxed_slice = v.into_boxed_slice();
+            // SAFETY: boxed_slice has exactly MEMORY_LIMIT elements, matching the array size.
+            unsafe { Box::from_raw(Box::into_raw(boxed_slice) as *mut [u16; consts::MEMORY_LIMIT]) }
+        };
         let mut lc3 = Self {
-            memory: vec![0; consts::MEMORY_LIMIT],
-            registers: vec![0; consts::Register::COUNT as usize],
+            memory,
+            registers: [0u16; consts::REGISTER_COUNT],
             running: false,
             trap: false,
         };

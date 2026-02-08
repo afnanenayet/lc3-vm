@@ -132,6 +132,9 @@ pub enum MemoryMappedRegister {
 /// the maximum addressable value is the max value of an unsigned 16 bit integer. 2 ^ 16 = 65536.
 pub const MEMORY_LIMIT: usize = (std::u16::MAX as usize) + 1;
 
+/// The number of registers in the LC3 architecture
+pub const REGISTER_COUNT: usize = 10;
+
 /// The default start position for the program counter
 pub const PC_START: u16 = 0x3000;
 
