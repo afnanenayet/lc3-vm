@@ -57,13 +57,13 @@ pub fn and(vm: &mut LC3, instr: u16) {
 /// This operation is unused and will abort the VM
 pub fn rti(vm: &mut LC3, _: u16) {
     println!("PANIC: illegal instruction (RTI)");
-    vm.running = false;
+    vm.halt();
 }
 
 /// This operation is unused and will abort the VM
 pub fn res(vm: &mut LC3, _: u16) {
     println!("PANIC: illegal instruction (RES)");
-    vm.running = false;
+    vm.halt();
 }
 
 pub fn not(vm: &mut LC3, instr: u16) {
@@ -171,6 +171,6 @@ pub fn trap(vm: &mut LC3, instr: u16) {
         vm.trap = false;
     } else {
         println!("PANIC: Unknown or malformed trap code encountered");
-        vm.running = false;
+        vm.halt();
     }
 }

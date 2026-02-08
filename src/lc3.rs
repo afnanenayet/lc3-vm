@@ -101,7 +101,7 @@ impl LC3 {
     /// encountered.
     pub fn run_loop(&mut self, tables: &DispatchTables) {
         self.running = true;
-        while self.running {
+        while self.is_running() {
             self.step(tables);
         }
     }
@@ -140,7 +140,7 @@ impl LC3 {
             let op_fn = op_dispatch_table[&op];
             op_fn(self, instr);
         } else {
-            self.running = false;
+            self.halt();
             println!("PANIC: Unknown opcode encountered");
         }
     }
@@ -175,6 +175,16 @@ impl LC3 {
             mem_idx += 1;
         }
         Ok(())
+    }
+
+    /// Halt the VM
+    pub fn halt(&mut self) {
+        self.running = false;
+    }
+
+    /// Check if the VM is currently running
+    pub fn is_running(&self) -> bool {
+        self.running
     }
 
     /// Update the condition flag

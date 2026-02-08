@@ -77,5 +77,5 @@ pub fn putsp(vm: &mut LC3) {
 
 pub fn halt(vm: &mut LC3) {
     print!("HALT");
-    vm.running = false;
+    vm.halt();
 }
