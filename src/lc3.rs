@@ -36,7 +36,6 @@ impl DispatchTables {
     pub fn new() -> Self {
         let op_dispatch_table = op_dispatch_table![
             (Op::BR, instruction::op::br),
-            (Op::LD, instruction::op::ld),
             (Op::ADD, instruction::op::add),
             (Op::LD, instruction::op::ld),
             (Op::ST, instruction::op::st),
