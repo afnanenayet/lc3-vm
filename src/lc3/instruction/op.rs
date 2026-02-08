@@ -22,7 +22,7 @@ pub fn add(vm: &mut LC3, instr: u16) {
     let imm_flag = (instr >> 5) & bit_mask(1);
 
     vm.registers[r0 as usize] = if imm_flag != 0 {
-        let imm5 = sign_extend(instr & 0x5, 5);
+        let imm5 = sign_extend(instr & bit_mask(5), 5);
         vm.registers[r1 as usize] + imm5
     } else {
         let r2 = instr & bit_mask(3);
