@@ -65,7 +65,7 @@ pub fn putsp(vm: &mut LC3) {
         .position(|x| *x == 0)
         .unwrap();
 
-    for &c in &vm.registers[start_pos..end_pos] {
+    for &c in &vm.memory[start_pos..start_pos + end_pos] {
         let char1 = vec![(c & 0xFF) as u8];
         let s = String::from_utf8_lossy(char1.as_slice());
         print!("{}", s);
