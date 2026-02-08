@@ -18,7 +18,7 @@ pub fn puts(vm: &mut LC3) {
         .unwrap();
     print!(
         "{}",
-        String::from_utf16_lossy(&vm.memory[start_pos..end_pos])
+        String::from_utf16_lossy(&vm.memory[start_pos..start_pos + end_pos])
     );
 }
 
