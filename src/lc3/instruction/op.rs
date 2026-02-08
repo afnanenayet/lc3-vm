@@ -115,11 +115,9 @@ pub fn ldr(vm: &mut LC3, instr: u16) {
 
 pub fn lea(vm: &mut LC3, instr: u16) {
     let r0 = get_arg(instr, 9, 3);
-    let pc_offset = get_arg(instr, 0, 9);
-    vm.mem_write(
-        vm.registers[Register::PC as usize] + pc_offset,
-        vm.registers[r0 as usize],
-    );
+    let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
+    vm.registers[r0 as usize] = vm.registers[Register::PC as usize].wrapping_add(pc_offset);
+    vm.update_cond_flag(r0);
 }
 
 pub fn st(vm: &mut LC3, instr: u16) {
