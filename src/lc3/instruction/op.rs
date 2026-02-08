@@ -46,10 +46,10 @@ pub fn and(vm: &mut LC3, instr: u16) {
 
     vm.registers[r0 as usize] = if imm_mode {
         let imm5 = sign_extend(instr & bit_mask(5), 5);
-        vm.registers[r1 as usize] + imm5
+        vm.registers[r1 as usize] & imm5
     } else {
         let r2 = instr & bit_mask(3);
-        vm.registers[r1 as usize] + vm.registers[r2 as usize]
+        vm.registers[r1 as usize] & vm.registers[r2 as usize]
     };
     vm.update_cond_flag(r0);
 }
