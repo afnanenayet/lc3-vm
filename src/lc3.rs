@@ -134,7 +134,7 @@ impl LC3 {
     pub fn step(&mut self, tables: &DispatchTables) {
         let op_dispatch_table = &tables.opcodes;
         let instr = self.mem_read(self.registers[Register::PC as usize]);
-        self.registers[Register::PC as usize] += 1;
+        self.registers[Register::PC as usize] = self.registers[Register::PC as usize].wrapping_add(1);
         if let Some(op) = FromPrimitive::from_u16(instr >> 12) {
             info!("read op {:?} ({}) at PC", op, instr);
             let op_fn = op_dispatch_table[&op];

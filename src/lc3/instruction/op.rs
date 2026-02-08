@@ -23,10 +23,10 @@ pub fn add(vm: &mut LC3, instr: u16) {
 
     vm.registers[r0 as usize] = if imm_flag != 0 {
         let imm5 = sign_extend(instr & bit_mask(5), 5);
-        vm.registers[r1 as usize] + imm5
+        vm.registers[r1 as usize].wrapping_add(imm5)
     } else {
         let r2 = instr & bit_mask(3);
-        vm.registers[r1 as usize] + vm.registers[r2 as usize]
+        vm.registers[r1 as usize].wrapping_add(vm.registers[r2 as usize])
     };
     vm.update_cond_flag(r0);
 }
@@ -34,7 +34,7 @@ pub fn add(vm: &mut LC3, instr: u16) {
 pub fn ldi(vm: &mut LC3, instr: u16) {
     let r0 = (instr >> 9) & bit_mask(3);
     let pc_offset = sign_extend(instr & 0x1ff, 9);
-    let r1 = vm.mem_read(vm.registers[Register::PC as usize] + pc_offset);
+    let r1 = vm.mem_read(vm.registers[Register::PC as usize].wrapping_add(pc_offset));
     vm.registers[r0 as usize] = vm.mem_read(r1);
     vm.update_cond_flag(r0);
 }
@@ -77,7 +77,7 @@ pub fn br(vm: &mut LC3, instr: u16) {
     let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
     let cond_flag = get_arg(instr, 9, 3);
     if cond_flag & vm.registers[Register::COND as usize] != 0 {
-        vm.registers[Register::PC as usize] += pc_offset;
+        vm.registers[Register::PC as usize] = vm.registers[Register::PC as usize].wrapping_add(pc_offset);
     }
 }
 
@@ -102,7 +102,7 @@ pub fn jsr(vm: &mut LC3, instr: u16) {
 pub fn ld(vm: &mut LC3, instr: u16) {
     let r0 = get_arg(instr, 9, 3);
     let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
-    vm.registers[r0 as usize] = vm.mem_read(vm.registers[Register::PC as usize] + pc_offset);
+    vm.registers[r0 as usize] = vm.mem_read(vm.registers[Register::PC as usize].wrapping_add(pc_offset));
     vm.update_cond_flag(r0);
 }
 
@@ -110,7 +110,7 @@ pub fn ldr(vm: &mut LC3, instr: u16) {
     let r0 = get_arg(instr, 9, 3);
     let base_register = get_arg(instr, 6, 3);
     let offset = sign_extend(get_arg(instr, 0, 6), 6);
-    vm.registers[r0 as usize] = vm.mem_read(vm.registers[base_register as usize] + offset);
+    vm.registers[r0 as usize] = vm.mem_read(vm.registers[base_register as usize].wrapping_add(offset));
     vm.update_cond_flag(r0);
 }
 
@@ -125,7 +125,7 @@ pub fn st(vm: &mut LC3, instr: u16) {
     let r0 = get_arg(instr, 9, 3);
     let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
     vm.mem_write(
-        vm.registers[Register::PC as usize] + pc_offset,
+        vm.registers[Register::PC as usize].wrapping_add(pc_offset),
         vm.registers[r0 as usize],
     );
 }
@@ -133,7 +133,7 @@ pub fn st(vm: &mut LC3, instr: u16) {
 pub fn sti(vm: &mut LC3, instr: u16) {
     let r0 = get_arg(instr, 9, 3);
     let pc_offset = sign_extend(get_arg(instr, 0, 9), 9);
-    let dst = vm.mem_read(vm.registers[Register::PC as usize] + pc_offset);
+    let dst = vm.mem_read(vm.registers[Register::PC as usize].wrapping_add(pc_offset));
     vm.mem_write(dst, vm.registers[r0 as usize]);
 }
 
@@ -142,7 +142,7 @@ pub fn str(vm: &mut LC3, instr: u16) {
     let r1 = get_arg(instr, 6, 3);
     let offset = sign_extend(get_arg(instr, 0, 6), 6);
     vm.mem_write(
-        vm.registers[r1 as usize] + offset,
+        vm.registers[r1 as usize].wrapping_add(offset),
         vm.registers[r0 as usize],
     );
 }
