@@ -67,7 +67,7 @@ pub fn get_cond_flag(value: u16) -> ConditionFlag {
 /// the first `n` bits of some number. For example, masking 3 bits means you want the bit mask to
 /// be 7 (111 in binary).
 pub fn bit_mask(num_bits: u16) -> u16 {
-    (0..num_bits).map(|x: u16| (2 as u16).pow(x.into())).sum()
+    (1u16 << num_bits) - 1
 }
 
 /// Retrieve an argument in an instruction
