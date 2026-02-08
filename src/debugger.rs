@@ -2,7 +2,7 @@
 ///
 /// This provides a way to step through instructions and inspect memory through the execution of a
 /// program, allowing the user to either debug the VM or the program.
-use crate::lc3::{consts::Register, DispatchTables, LC3};
+use crate::lc3::{consts::Register, LC3};
 use num_traits::FromPrimitive;
 use std::io;
 use tui::backend::Backend;
@@ -32,8 +32,8 @@ impl<'a> Debugger<'a> {
     /// Perform an event tick on the debugger
     ///
     /// This performs an iteration on the VM. It will move forward the instruction by one step.
-    pub fn tick(&mut self, tables: &DispatchTables) {
-        self.vm.step(&tables);
+    pub fn tick(&mut self) {
+        self.vm.step();
         let next_op = format!("{:?}", self.vm.parse_next_op());
         self.op_history.push(next_op);
     }

@@ -6,6 +6,17 @@ use std::io::{self, Read, Write};
 /// Every method has the same type: `fn(&mut LC3)`, which makes it easy to create function dispatch
 /// tables for trap codes.
 
+/// Dispatch table mapping trap codes to handler functions.
+/// Indexed by `trap_code - 0x20`.
+pub const TRAP_TABLE: [fn(&mut LC3); 6] = [
+    getc,  // 0x20
+    out,   // 0x21
+    puts,  // 0x22
+    r#in,  // 0x23
+    putsp, // 0x24
+    halt,  // 0x25
+];
+
 pub fn puts(vm: &mut LC3) {
     // build up a string by looking for 16 bit integers until we hit the null terminator. The
     // starting location of the string is whatever is at the r0 register

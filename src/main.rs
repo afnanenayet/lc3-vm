@@ -31,7 +31,6 @@ fn main() -> Result<(), io::Error> {
     let opt = Opt::from_args();
     debug!("Initialized VM");
     let mut vm = lc3::LC3::new();
-    let tables = lc3::DispatchTables::new();
     vm.read_image_file(&opt.image_file)?;
 
     if opt.debug {
@@ -59,7 +58,7 @@ fn main() -> Result<(), io::Error> {
                     return Ok(());
                 }
                 "n" => {
-                    debug_state.tick(&tables);
+                    debug_state.tick();
                     debugger::draw(&mut terminal, &debug_state)?;
                 }
                 _ => (),
@@ -67,7 +66,7 @@ fn main() -> Result<(), io::Error> {
             buf.clear();
         }
     } else {
-        vm.run_loop(&tables);
+        vm.run_loop();
     }
     Ok(())
 }

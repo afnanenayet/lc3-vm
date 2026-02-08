@@ -6,57 +6,19 @@
 /// for actually running the program.
 pub mod consts;
 
-#[macro_use]
 mod instruction;
 
-use consts::{MemoryMappedRegister, Op, OpDispatchTable, Register, Trap};
+use consts::{MemoryMappedRegister, Op, Register, Trap};
 use instruction::getchar;
+use instruction::op::OP_TABLE;
 use itertools::Itertools;
 use log::{debug, info};
 use num_traits::FromPrimitive;
 use std::{
-    collections::HashMap,
     fs::File,
     io::{self, Read},
     path::PathBuf,
 };
-
-/// The lookup tables for the VM
-///
-/// We store the lookup tables here so we don't have to keep re-initializing them in the function
-pub struct DispatchTables {
-    /// The dispatch table for various opcodes
-    pub opcodes: OpDispatchTable,
-}
-
-impl DispatchTables {
-    /// Create a new set of dispatch tables
-    ///
-    /// This iniitalizes the struct with properly defined dispatch tables
-    pub fn new() -> Self {
-        let op_dispatch_table = op_dispatch_table![
-            (Op::BR, instruction::op::br),
-            (Op::ADD, instruction::op::add),
-            (Op::LD, instruction::op::ld),
-            (Op::ST, instruction::op::st),
-            (Op::JSR, instruction::op::jsr),
-            (Op::AND, instruction::op::and),
-            (Op::LDR, instruction::op::ldr),
-            (Op::STR, instruction::op::str),
-            (Op::RTI, instruction::op::rti),
-            (Op::NOT, instruction::op::not),
-            (Op::LDI, instruction::op::ldi),
-            (Op::STI, instruction::op::sti),
-            (Op::JMP, instruction::op::jmp),
-            (Op::RES, instruction::op::res),
-            (Op::LEA, instruction::op::lea),
-            (Op::TRAP, instruction::op::trap)
-        ];
-        Self {
-            opcodes: op_dispatch_table,
-        }
-    }
-}
 
 /// The data pertaining to the state of the LC3 VM
 pub struct LC3 {
@@ -102,10 +64,10 @@ impl LC3 {
     ///
     /// This will start a run-loop that processes instructions until the stop instruction is
     /// encountered.
-    pub fn run_loop(&mut self, tables: &DispatchTables) {
+    pub fn run_loop(&mut self) {
         self.running = true;
         while self.is_running() {
-            self.step(tables);
+            self.step();
         }
     }
 
@@ -134,18 +96,12 @@ impl LC3 {
     /// This is one step of execution in the VM. The VM should continuously run steps in a loop,
     /// though it is split out into a function for easy debugging. This method will read the
     /// instruction, dispatch the appropriate function, and increment the program counter.
-    pub fn step(&mut self, tables: &DispatchTables) {
-        let op_dispatch_table = &tables.opcodes;
+    pub fn step(&mut self) {
         let instr = self.mem_read(self.registers[Register::PC as usize]);
         self.registers[Register::PC as usize] = self.registers[Register::PC as usize].wrapping_add(1);
-        if let Some(op) = FromPrimitive::from_u16(instr >> 12) {
-            info!("read op {:?} ({}) at PC", op, instr);
-            let op_fn = op_dispatch_table[&op];
-            op_fn(self, instr);
-        } else {
-            self.halt();
-            println!("PANIC: Unknown opcode encountered");
-        }
+        let op_index = (instr >> 12) as usize;
+        info!("read op {} ({}) at PC", op_index, instr);
+        OP_TABLE[op_index](self, instr);
     }
 
     /// Read a VM image and load it into memory

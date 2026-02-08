@@ -4,12 +4,10 @@
 /// and an instruction, which is a 16-bit integer.
 use super::{bit_mask, get_arg, sign_extend};
 use crate::lc3::{
-    consts::{self, Register, Trap},
+    consts::Register,
     instruction::trap,
     LC3,
 };
-use num_traits::FromPrimitive;
-use std::collections::HashMap;
 
 pub fn add(vm: &mut LC3, instr: u16) {
     // destination register (DR)
@@ -147,27 +145,36 @@ pub fn str(vm: &mut LC3, instr: u16) {
     );
 }
 
+/// Dispatch table mapping opcode numbers (0-15) to handler functions.
+pub const OP_TABLE: [fn(&mut LC3, u16); 16] = [
+    br,   // 0  BR
+    add,  // 1  ADD
+    ld,   // 2  LD
+    st,   // 3  ST
+    jsr,  // 4  JSR
+    and,  // 5  AND
+    ldr,  // 6  LDR
+    str,  // 7  STR
+    rti,  // 8  RTI
+    not,  // 9  NOT
+    ldi,  // 10 LDI
+    sti,  // 11 STI
+    jmp,  // 12 JMP
+    res,  // 13 RES
+    lea,  // 14 LEA
+    trap, // 15 TRAP
+];
+
 /// This routine is dispatched when a trap code is encountered.
 ///
 /// This method will extract the trap code from the instruction and call the appropriate
 /// corresponding function.
 pub fn trap(vm: &mut LC3, instr: u16) {
     vm.trap = true;
-    let trap_dispatch_table = trap_dispatch_table![
-        (Trap::GETC, trap::getc),
-        (Trap::OUT, trap::out),
-        (Trap::PUTS, trap::puts),
-        (Trap::PUTSP, trap::putsp),
-        (Trap::IN, trap::r#in),
-        (Trap::HALT, trap::halt)
-    ];
-    let raw_trap_code = (instr as u16) & 0xFF;
-
-    // An invalid trap call will lead to the VM halting
-    let trap_code = FromPrimitive::from_u16(raw_trap_code).unwrap_or(Trap::HALT);
-
-    if let Some(trap_fn) = trap_dispatch_table.get(&trap_code) {
-        trap_fn(vm);
+    let raw_trap_code = (instr & 0xFF) as usize;
+    let index = raw_trap_code.wrapping_sub(0x20);
+    if index < trap::TRAP_TABLE.len() {
+        trap::TRAP_TABLE[index](vm);
         vm.trap = false;
     } else {
         println!("PANIC: Unknown or malformed trap code encountered");
