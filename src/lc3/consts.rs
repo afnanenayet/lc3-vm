@@ -130,7 +130,7 @@ pub enum MemoryMappedRegister {
 
 /// The number of pointers that can be addressed. The LC3 virtual machine has 16-bit pointers, so
 /// the maximum addressable value is the max value of an unsigned 16 bit integer. 2 ^ 16 = 65536.
-pub const MEMORY_LIMIT: usize = std::u16::MAX as usize;
+pub const MEMORY_LIMIT: usize = (std::u16::MAX as usize) + 1;
 
 /// The default start position for the program counter
 pub const PC_START: u16 = 0x3000;
