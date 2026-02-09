@@ -95,3 +95,47 @@ pub fn halt(vm: &mut LC3) {
     io::stdout().flush().unwrap_or(());
     vm.halt();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn new_vm() -> LC3 {
+        LC3::new()
+    }
+
+    #[test]
+    fn halt_stops_vm() {
+        let mut vm = new_vm();
+        halt(&mut vm);
+        assert!(!vm.is_running());
+    }
+
+    #[test]
+    fn puts_does_not_panic() {
+        let mut vm = new_vm();
+        // Place a null-terminated string "Hi" at address 0x4000
+        vm.memory[0x4000] = b'H' as u16;
+        vm.memory[0x4001] = b'i' as u16;
+        vm.memory[0x4002] = 0; // null terminator
+        vm.registers[Register::R0 as usize] = 0x4000;
+        puts(&mut vm);
+    }
+
+    #[test]
+    fn putsp_does_not_panic() {
+        let mut vm = new_vm();
+        // Pack two chars per word: low byte = 'A', high byte = 'B'
+        vm.memory[0x4000] = (b'B' as u16) << 8 | b'A' as u16;
+        vm.memory[0x4001] = 0; // null terminator
+        vm.registers[Register::R0 as usize] = 0x4000;
+        putsp(&mut vm);
+    }
+
+    #[test]
+    fn out_does_not_panic() {
+        let mut vm = new_vm();
+        vm.registers[Register::R0 as usize] = b'X' as u16;
+        out(&mut vm);
+    }
+}
